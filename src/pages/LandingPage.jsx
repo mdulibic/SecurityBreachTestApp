@@ -138,16 +138,16 @@ function LandingPage() {
                 setMessage("")
                 return true;
             } else {
-                setMessage("Pasword needs to be at least 8 letters, a symbol, upper and lower case letters and a number")
+                setMessage("Password needs to be at least 8 letters, a symbol, upper and lower case letters and a number")
                 return false;
             }
         } else {
-            var re = /^[a-zA-Z0-9]{8,}$/;
+            var re = /.{8,}$/;
             if(re.test(str)){
                 setMessage("")
                 return true;
             } else {
-                setMessage("Pasword needs to be at least 8 characters")
+                setMessage("Password needs to be at least 8 characters")
                 return false;
             }
         }
