@@ -3,17 +3,18 @@ import React, {useState} from "react";
 import "../index.css";
 import {pageStyle} from "../style/globalStyles";
 import Switch from "../components/Switch";
-import {Button} from "@mui/material";
+import {Alert, Button} from "@mui/material";
 import DOMPurify from 'dompurify';
+import authHeader from "../auth-header";
 
 function LandingPage() {
 
-    const [value, setValue] = useState(false);
-    const [userName, setUserName] = useState("");
+    const api = process.env.REACT_APP_API_URL;
 
-    const displayStyle = {
-        display: "flex", justifyContent: "center", alignItems: "center", paddingTop: "10px"
-    }
+    const [value, setValue] = useState(false);
+    const [message, setMessage] = useState("");
+    const [userName, setUserName] = useState("");
+    const [users, setUsers] = useState([]);
 
     const getTitle = () => {
         const title = `1.XSS<b onmouseover="alert('XSS ATTACK!');"> Attack</b>`;
@@ -27,12 +28,122 @@ function LandingPage() {
         window.eval(script);
     };
 
-    return (<div style={{...pageStyle, padding: "10px"}}>
+    const logout = () => {
+        setUsers([]);
+        setMessage("Logged out!");
+        localStorage.removeItem("user");
+    };
+
+    const login = (username, email, password) => {
+        fetch(api + `/users/auth/login/${value}`, {
+            method: "POST",
+            headers: {
+                Origin: origin, "Content-Type": "application/json",
+            },
+            credentials: "same-origin",
+            withCredentials: true,
+            body: JSON.stringify({
+                username: username,
+                email: email,
+                password: password
+            }, null, 2),
+        }).then((r) => {
+            setUsers([]);
+            if (!r.ok) {
+                setMessage("Failed to login");
+                throw new Error("HTTP status code: " + r.status);
+            } else {
+                setMessage("Successfully logged in!");
+                 return r.json();
+            }
+        }).then(data => {
+                localStorage.setItem("user", JSON.stringify(data));
+            });
+    };
+
+    const register = (username, email, password) => {
+        fetch(api + `/users/auth/register/${value}`, {
+            method: "POST",
+            headers: {
+                Origin: origin, "Content-Type": "application/json",
+            },
+            credentials: "same-origin",
+            withCredentials: true,
+            body: JSON.stringify({
+                username: username,
+                email: email,
+                password: password
+            }, null, 2),
+        }).then((r) => {
+            setUsers([]);
+            if (!r.ok) {
+                setMessage("Failed to register");
+                throw new Error("HTTP status code: " + r.status);
+            } else {
+                setMessage("Successfully registered!");
+                return r.json();
+            }
+        });
+    };
+
+    const listUsers = () => {
+        fetch(api + "/users", {
+            method: "GET",
+            headers: {
+                Authorization: authHeader(),
+                Origin: origin,
+            },
+        })
+            .then((response) => {
+                if (response.ok) {
+                    setMessage("");
+                    return response.json();
+                } else {
+                    setMessage("No rights to list users. Login to get access!");
+                    throw new Error(response.status);
+                }
+            })
+            .then((data) => {
+                setUsers(data);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    };
+
+    const listUsersNoAuth = () => {
+        fetch(api + "/auth/users", {
+            method: "GET",
+            headers: {
+                Origin: origin,
+            },
+        })
+            .then((response) => {
+                if (response.ok) {
+                    setMessage("");
+                    return response.json();
+                } else {
+                    setMessage("No rights to list users. Login to get access!");
+                    throw new Error(response.status);
+                }
+            })
+            .then((data) => {
+                setUsers(data);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    };
+
+    return (<div style={{...pageStyle, padding: "10px", overflow: "scroll"}}>
         <div style={{color: "#FFFFFF"}}>
             <h1>Security:</h1>
             <Switch
                 isOn={value}
-                handleToggle={() => setValue(!value)}
+                handleToggle={() => {
+                    setUsers([])
+                    localStorage.removeItem("user");
+                    setValue(!value)}}
             />
         </div>
         <div>
@@ -55,17 +166,57 @@ function LandingPage() {
             <div>
                 <form>
                     <div className="form-group">
-                        <label htmlFor="exampleInputEmail1">Email address</label>
-                        <input type="email" name="email" className="form-control" id="exampleInputEmail1"
+                        <div className="form-group">
+                            <label htmlFor="username">Username:</label>
+                            <input id="username" placeholder="Username"/>
+                        </div>
+                        <label htmlFor="email">Email:</label>
+                        <input type="email" name="email" className="form-control" id="email"
                                aria-describedby="emailHelp" placeholder="Enter email"/>
                     </div>
                     <div className="form-group">
-                        <label htmlFor="exampleInputPassword1">Password</label>
-                        <input type="password" name="password" className="form-control" id="exampleInputPassword1"
+                        <label htmlFor="password">Password:</label>
+                        <input type="password" name="password" className="form-control" id="password"
                                placeholder="Password"/>
                     </div>
-                    <button type="submit" className="btn btn-primary">Login</button>
-                    <button style={{marginLeft: '25px'}} className="btn btn-success">Signup</button>
+                    <Button
+                        style={{margin: "0.3rem", backgroundColor: "#FF6587"}}
+                        onClick={() => login(document.getElementById('username').value,
+                            document.getElementById('email').value,
+                            document.getElementById('password').value)}
+                        variant="contained">
+                        Login
+                    </Button>
+                    <Button
+                        style={{margin: "0.3rem", backgroundColor: "#FF6587"}}
+                        onClick={() => logout()}
+                        variant="contained">
+                        Logout
+                    </Button>
+                    <Button
+                        style={{margin: "0.3rem", backgroundColor: "#FF6587"}}
+                        onClick={() => register(document.getElementById('username').value,
+                            document.getElementById('email').value,
+                            document.getElementById('password').value)}
+                        variant="contained">
+                        Register
+                    </Button>
+                    <Button
+                        style={{margin: "0.3rem", backgroundColor: "#FF6587"}}
+                        onClick={() => {
+                            if(value) listUsers(); else listUsersNoAuth();
+                        }}
+                        variant="contained">
+                        List users
+                    </Button>
+                    {users.length > 0 && (
+                        users.map((f) => (
+                            <div style={{ margin: "auto", marginTop: "2rem", width: "75%", color : "#FFFFFF" }}>
+                                Username: {f.username}<br/> Email: {f.email} <br/>Password: {f.password}<br/>
+                            </div>
+                        ))
+                    )}
+                    {message && (<div style={{color: "#FFFFFF"}}>{value ? (<div>{message}</div>):(<div>{message}</div>)}</div>)}
                 </form>
             </div>
         </div>
